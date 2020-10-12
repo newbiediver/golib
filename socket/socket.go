@@ -1,6 +1,7 @@
 package socket
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
@@ -25,6 +26,18 @@ type TCP struct {
 type Listener struct {
 	ln       net.Listener
 	flagStop bool
+}
+
+type rpcObject struct {
+	rpcSize, bodySize		uint64
+	body 					[]byte
+}
+
+// RPC is using tcp
+type RPC struct {
+	connector	*TCP
+	rawBuffer	[]byte
+	obj 		chan *rpcObject
 }
 
 func (b *socketBuffer) initSocketBuffer() {
@@ -100,6 +113,11 @@ func (t *TCP) DelayClose() {
 	}()
 }
 
+// GetLocalAddr 로컬 주소
+func (t *TCP) GetLocalAddr() string {
+	return t.connection.LocalAddr().String()
+}
+
 // GetRemoteAddr 접속중인 peer 의 원격지 주소
 func (t *TCP) GetRemoteAddr() string {
 	return t.connection.RemoteAddr().String()
@@ -141,7 +159,7 @@ func (t *TCP) Read(buffer []byte, size int) error {
 
 // Listen is for server
 func (l *Listener) Listen(port uint) error {
-	str := fmt.Sprintf(":%d", port)
+	str := fmt.Sprintf("0.0.0.0:%d", port)
 	ln, err := net.Listen("tcp", str)
 	if err != nil {
 		return err
@@ -171,8 +189,91 @@ func (l *Listener) AsyncAccept(acceptCallback func(*TCP)) {
 	}()
 }
 
+// IsStopped Listener가 종료된 상태인지 여부
+func (l *Listener) IsStopped() bool {
+	return l.flagStop
+}
+
 // StopAccept will be stopped service
 func (l *Listener) StopAccept() {
-	l.flagStop = true
-	l.ln.Close()
+	if !l.flagStop {
+		l.flagStop = true
+		_ = l.ln.Close()
+	}
+}
+
+func (r *RPC) Init() {
+	r.connector = new(TCP)
+	r.rawBuffer = make([]byte, 65536)
+	r.obj = make(chan *rpcObject)
+}
+
+func (r *RPC) extractPacket(connection *TCP, buffer []byte) []byte {
+	const headerSize int = 8
+
+	rawHeader, err := connection.Peek(headerSize)
+	if err != nil {
+		return nil
+	}
+
+	rawSize := rawHeader[:headerSize]
+	size := binary.LittleEndian.Uint64(rawSize)
+
+	err = connection.Read(buffer, int(size))
+	if err != nil {
+		return nil
+	}
+
+	return buffer
+}
+
+func (r *RPC) receiver(buffer []byte) {
+	const lenSize int = 8
+
+	obj := new(rpcObject)
+	rawRpcSize := buffer[:lenSize]
+	rawBodySize := buffer[lenSize:lenSize*2]
+
+	obj.rpcSize = binary.LittleEndian.Uint64(rawRpcSize)
+	obj.bodySize = binary.LittleEndian.Uint64(rawBodySize)
+
+	obj.body = buffer[lenSize*3:lenSize*3+int(obj.bodySize)]
+
+	r.obj <- obj
+}
+
+func (r *RPC) Connect(addr string, port uint, whenDisconnect func()) bool {
+	isConnect := r.connector.Connect(addr, port)
+	if isConnect {
+		go r.connector.ConnectionHandler(func() {
+			for r.extractPacket(r.connector, r.rawBuffer) != nil {
+				r.receiver(r.rawBuffer)
+			}
+		}, whenDisconnect)
+	}
+
+	return isConnect
+}
+
+func (r *RPC) Call(funcName, body string) []byte {
+	const headerSize uint64 = 24
+	const lenSize int = 8
+
+	obj := rpcObject{}
+	obj.rpcSize = headerSize + uint64(len(funcName) + len(body))
+	obj.bodySize = uint64(len(body))
+	nameLen := uint64(len(funcName))
+
+	rawByte := make([]byte, obj.rpcSize)
+	binary.LittleEndian.PutUint64(rawByte[:lenSize], obj.rpcSize)
+	binary.LittleEndian.PutUint64(rawByte[lenSize:lenSize*2], obj.bodySize)
+	binary.LittleEndian.PutUint64(rawByte[lenSize*2:lenSize*3], nameLen)
+
+	copy(rawByte[lenSize*3:], []byte(funcName))
+	copy(rawByte[lenSize*3+len(funcName):], []byte(body))
+
+	r.connector.Send(rawByte)
+	result := <-r.obj
+
+	return result.body
 }
