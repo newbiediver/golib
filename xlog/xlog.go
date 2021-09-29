@@ -96,14 +96,14 @@ func Fatal(format string, a ...interface{}) {
 func timeToString(tm time.Time) string {
 	var sign string
 
-	_, offset := tm.Zone()
+	zoneName, offset := tm.Zone()
 	offset = offset / 3600
 	if offset >= 0 {
 		sign = "+"
 	} else {
 		sign = "-"
 	}
-	return fmt.Sprintf("%04d.%02d.%02d %02d:%02d:%02d %s%d", tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), sign, offset)
+	return fmt.Sprintf("%04d.%02d.%02d %02d:%02d:%02d %s%d/%s", tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), sign, offset, zoneName)
 }
 
 func (l *logger) procSchedule() {
