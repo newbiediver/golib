@@ -55,7 +55,7 @@ func StopLogger() {
 func printf(lv LogLevel, format string, a ...interface{}) {
 	str := fmt.Sprintf(format, a...)
 	now := time.Now().In(curLogger.loc)
-	timeString := fmt.Sprintf("%04d.%02d.%02d %02d:%02d:%02d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+	timeString := timeToString(now)
 
 	obj := logObject{
 		timeString: timeString,
