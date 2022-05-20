@@ -6,6 +6,16 @@ import (
 )
 
 type procType int
+type Priority int
+
+const (
+	PriorityVerySlow Priority = 2000
+	PrioritySlow     Priority = 1000
+	PriorityNormal   Priority = 500
+	PriorityFast     Priority = 200
+	PriorityVeryFast Priority = 30
+	PriorityRealTime Priority = 1
+)
 
 const (
 	intervalType procType = 0 + iota
@@ -17,20 +27,20 @@ const (
 )
 
 type Object struct {
-	interval 		int64
-	lastTickTime	int64
-	nextEvent		time.Time
-	objType			procType
-	completion		func()
+	interval     int64
+	lastTickTime int64
+	nextEvent    time.Time
+	objType      procType
+	completion   func()
 }
 
 type Handler struct {
-	termination		bool
-	running			bool
-	waiter			sync.WaitGroup
-	lock 			*sync.Mutex
-	newObj			[]*Object
-	activeObj		[]*Object
+	termination bool
+	running     bool
+	waiter      sync.WaitGroup
+	lock        *sync.Mutex
+	newObj      []*Object
+	activeObj   []*Object
 }
 
 var (
@@ -60,7 +70,7 @@ func CreateObjectByEveryDay(hour int, minute int, second int, completion func())
 	return obj
 }
 
-func (s *Handler) Run() {
+func (s *Handler) Run(priority Priority) {
 	if s.running {
 		return
 	}
@@ -69,7 +79,7 @@ func (s *Handler) Run() {
 	s.waiter.Add(1)
 	s.running = true
 
-	go s.procObjects()
+	go s.procObjects(priority)
 }
 
 func (s *Handler) Stop() {
@@ -103,7 +113,7 @@ func (s *Handler) activateObject() {
 	s.newObj = nil
 }
 
-func (s *Handler) procObjects() {
+func (s *Handler) procObjects(p Priority) {
 	defer s.waiter.Done()
 
 	for !s.termination {
@@ -123,6 +133,6 @@ func (s *Handler) procObjects() {
 				}
 			}
 		}
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Millisecond * time.Duration(p))
 	}
 }
