@@ -1,3 +1,3 @@
 module github.com/newbiediver/golib
 
-go 1.14
+go 1.18
