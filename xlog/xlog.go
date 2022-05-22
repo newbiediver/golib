@@ -13,31 +13,31 @@ type LogLevel int
 const (
 	information LogLevel = iota
 	warning
-	error
+	err
 	fatal
 )
 
 type logObject struct {
-	timeString 		string
-	bodyString		string
-	level			LogLevel
+	timeString string
+	bodyString string
+	level      LogLevel
 }
 
 type logger struct {
-	appName			string
-	logs			[]logObject
-	loc 			*time.Location
-	sc				*scheduler.Handler
-	lock 			*sync.Mutex
+	appName string
+	logs    []logObject
+	loc     *time.Location
+	sc      *scheduler.Handler
+	lock    *sync.Mutex
 }
 
 var (
-	curLogger	logger
+	curLogger logger
 )
 
 func RunLogger(runningScheduler *scheduler.Handler, appName string, loc *time.Location) {
-	if _, err := os.Stat("./Log"); os.IsNotExist(err) {
-		_ = os.Mkdir("./Log", 0755)
+	if _, err := os.Stat("./log"); os.IsNotExist(err) {
+		_ = os.Mkdir("./log", 0755)
 	}
 
 	curLogger.appName = appName
@@ -60,7 +60,7 @@ func printf(lv LogLevel, format string, a ...interface{}) {
 	obj := logObject{
 		timeString: timeString,
 		bodyString: str,
-		level: lv,
+		level:      lv,
 	}
 
 	curLogger.lock.Lock()
@@ -86,7 +86,7 @@ func Warn(format string, a ...interface{}) {
 }
 
 func Error(format string, a ...interface{}) {
-	printf(error, format, a...)
+	printf(err, format, a...)
 }
 
 func Fatal(format string, a ...interface{}) {
@@ -126,9 +126,9 @@ func (l *logger) procSchedule() {
 	}
 
 	now := time.Now().In(l.loc)
-	filePath := fmt.Sprintf("./Log/%s_%04d-%02d-%02d.log", l.appName, now.Year(), now.Month(), now.Day())
+	filePath := fmt.Sprintf("./log/%s_%04d-%02d-%02d.log", l.appName, now.Year(), now.Month(), now.Day())
 
-	file, err := os.OpenFile(filePath, os.O_APPEND | os.O_WRONLY | os.O_CREATE, 0644)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		panic("Could not open log file!")
 	}
@@ -139,7 +139,7 @@ func (l *logger) procSchedule() {
 
 	for _, logItem := range l.logs {
 		str := fmt.Sprintf("[%s] [%s] %s", logItem.timeString, levelString[logItem.level], logItem.bodyString)
-		fmt.Fprintln(file, str)
+		_, _ = fmt.Fprintln(file, str)
 	}
 
 	l.logs = nil
