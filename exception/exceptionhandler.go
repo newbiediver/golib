@@ -4,6 +4,7 @@
 package exception
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -91,7 +92,9 @@ func (ha *Handler) ExceptionCallbackFunctor() {
 		uploadUri := fmt.Sprintf("%s/upload", ha.backendURL)
 		contextString := fmt.Sprintf("core.%s", ha.appName)
 
-		cmdCrashHandler := exec.Command("sh", "-c", fmt.Sprintf("./crashhub_handler --rm -r %s -d %s -c %s -n %s -m \"%s\"", uploadUri, ha.dumpDirectory, contextString, ha.appName, callstackString))
+		base64Callstack := base64.StdEncoding.EncodeToString([]byte(callstackString))
+
+		cmdCrashHandler := exec.Command("sh", "-c", fmt.Sprintf("./crashhub_handler --rm -r %s -d %s -c %s -n %s -m \"%s\"", uploadUri, ha.dumpDirectory, contextString, ha.appName, base64Callstack))
 		cmdCrashHandler.Stdout = os.Stdout
 		if err := cmdCrashHandler.Run(); err != nil {
 			fmt.Println(err)
