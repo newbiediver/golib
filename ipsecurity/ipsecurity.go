@@ -1,5 +1,30 @@
 package ipsecurity
 
+/*
+# ipfilter policy yaml 샘플
+
+api:
+  blockDefault: true	# 기본적으로 모든 ip 를 block할지 안할지 여부
+  trusted:
+  - 10.244.0.0/16		# 신뢰하는 프록시 서버의 대역 (예> docker network 대역. k8s container network 대역)
+allow:					# blockDefault가 true 일 경우 참조됨
+  ips:					# 화이트리스트 ip
+  - 10.244.0.0/16		# 신뢰하는 프록시와 같은 내용을 쓸 경우는 같은 대역에서 접속을 허용해야핧 때..(예> k8s 클러스터 내의 pod 끼리 통신)
+  - 59.9.184.33
+  countries:			# 화이트리스트 국가
+  - KR
+  - US
+block:					# blockDefault가 false 일 경우 참조됨
+  ips:					# 블랙리스트 ip
+  - 210.103.86.151
+  - 162.53.177.0/24
+  countries:			# 블랙리스트 국가
+  - CN	# 짱깨
+  - AF	# 아프간
+  - KP	# 북한
+
+*/
+
 import (
 	"github.com/jpillora/ipfilter"
 	"gopkg.in/yaml.v3"
