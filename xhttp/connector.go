@@ -21,11 +21,10 @@ const (
 )
 
 const (
-	plainText         string = "text/plain"
-	htmlText          string = "text/html"
-	formUrlEncode     string = "application/x-www-form-urlencoded"
-	multiPartFormData string = "multipart/form-data"
-	json              string = "application/json"
+	plainText     string = "text/plain"
+	htmlText      string = "text/html"
+	formUrlEncode string = "application/x-www-form-urlencoded"
+	json          string = "application/json"
 )
 
 type Connector struct {
@@ -134,8 +133,6 @@ func (c *Connector) MULTIPART(filePath string, keyValue, additionalHeader map[st
 		}
 	}
 
-	defer writer.Close()
-
 	filePart, err := writer.CreateFormFile("file", fi.Name())
 	if err != nil {
 		return "", err
@@ -144,13 +141,14 @@ func (c *Connector) MULTIPART(filePath string, keyValue, additionalHeader map[st
 	if err != nil {
 		return "", err
 	}
+	_ = writer.Close()
 
 	request, err := http.NewRequest(string(c.method), c.uri, body)
 	if err != nil {
 		return "", err
 	}
 
-	request.Header.Set("Content-Type", multiPartFormData)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
 	if additionalHeader != nil {
 		for k, v := range additionalHeader {
 			request.Header.Add(k, v)
