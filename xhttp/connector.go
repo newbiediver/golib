@@ -3,11 +3,11 @@ package xhttp
 import (
 	"bytes"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -63,7 +63,7 @@ func (c *Connector) httpRequest(contentType, data string, additionalHeader map[s
 	if c.method == GET {
 		body = nil
 	} else {
-		body = bytes.NewBufferString(data)
+		body = strings.NewReader(data)
 	}
 	request, err := http.NewRequest(string(c.method), c.uri, body)
 	if err != nil {
@@ -98,11 +98,11 @@ func (c *Connector) HTML(html string, additionalHeader map[string]string) (strin
 }
 
 func (c *Connector) FORM(keyValue, additionalHeader map[string]string) (string, error) {
-	var data string
+	path := url.Values{}
 	for k, v := range keyValue {
-		data += fmt.Sprintf("%s=%s&", k, v)
+		path.Add(k, v)
 	}
-	data = data[:len(data)-1]
+	data := path.Encode()
 
 	return c.httpRequest(formUrlEncode, data, additionalHeader)
 }
