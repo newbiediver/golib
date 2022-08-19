@@ -1,4 +1,6 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
+github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/jpillora/ipfilter v1.2.5 h1:X3xPuZFOja1nKUE2JzOnkHXpBH2fNQ4oy+QfyjHULTg=
 github.com/jpillora/ipfilter v1.2.5/go.mod h1:syZBm/ljGcobmmO6jFKrPdhBSN3NaRkFiavSVW9Uh/Q=
 github.com/phuslu/iploc v1.0.20220429 h1:tydyPSke+L5JQtjtBOXvTaKybrFwa6Bseb96eKPrC+0=

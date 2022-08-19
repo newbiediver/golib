@@ -2,6 +2,8 @@ module github.com/newbiediver/golib
 
 go 1.18
 
+require github.com/go-sql-driver/mysql v1.6.0
+
 require (
 	github.com/jpillora/ipfilter v1.2.5 // indirect
 	github.com/phuslu/iploc v1.0.20220429 // indirect
