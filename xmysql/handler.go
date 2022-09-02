@@ -2,8 +2,10 @@ package xmysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/newbiediver/golib/scheduler"
 )
 
 /*
@@ -107,7 +109,8 @@ type QueryExecutor struct {
 }
 
 var (
-	managedHandlers map[string]*Handler
+	managedHandlers  map[string]*Handler
+	backgroundObject *scheduler.Handler
 )
 
 // NewHandler 새연결
@@ -121,13 +124,26 @@ func NewHandler(server, uid, pwd, source string, port, io int) (*Handler, error)
 	}
 
 	dbHandler.SetMaxIdleConns(io)
-	_, err = dbHandler.Exec("SELECT 1;")
+	err = dbHandler.Ping()
 	if err != nil {
 		return nil, err
 	}
 
 	newHandler := new(Handler)
 	newHandler.sqlHandler = dbHandler
+
+	if backgroundObject == nil {
+		backgroundObject = new(scheduler.Handler)
+		backgroundObject.Run(scheduler.PriorityVerySlow)
+
+		obj := scheduler.CreateObjectByInterval(30000, func() {
+			if err := newHandler.sqlHandler.Ping(); err != nil {
+				fmt.Printf("SQL connections look like disconnected: %s", err.Error())
+			}
+		})
+
+		backgroundObject.NewObject(obj)
+	}
 
 	return newHandler, nil
 }
@@ -140,8 +156,29 @@ func KeepHandler(name string, newHandler *Handler) {
 	managedHandlers[name] = newHandler
 }
 
+func FlushHandlers() {
+	backgroundObject.Stop()
+	for _, handler := range managedHandlers {
+		_ = handler.sqlHandler.Close()
+	}
+}
+
 func GetHandler(name string) *Handler {
 	return managedHandlers[name]
+}
+
+func (s *Handler) SyncQuery(sqlString string) (*RecordSet, error) {
+	result := RecordSet{}
+	rows, err := s.sqlHandler.Query(sqlString)
+	if err != nil {
+		return nil, err
+	}
+
+	if rows != nil {
+		result.curRows = rows
+	}
+
+	return &result, nil
 }
 
 // Query 단일 쿼리 호출
@@ -156,6 +193,16 @@ func (s *Handler) Query(executor *QueryExecutor) {
 		defer func() {
 			if rows != nil {
 				_ = rows.Close()
+			}
+			if r := recover(); r != nil {
+				switch r.(type) {
+				case string:
+					executor.OnError(errors.New(r.(string)))
+				case error:
+					executor.OnError(r.(error))
+				default:
+					executor.OnError(errors.New("unknown error"))
+				}
 			}
 		}()
 
@@ -184,11 +231,28 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 			panic(err)
 		}
 
+		defer func() {
+			_ = tx.Rollback()
+
+			if r := recover(); r != nil {
+				switch r.(type) {
+				case string:
+					go onRollback(errors.New(r.(string)))
+				case error:
+					go onRollback(r.(error))
+				default:
+					go onRollback(errors.New("unknown error"))
+				}
+				fmt.Println(r)
+			}
+		}()
+
 		for _, executor := range queries {
 			result := RecordSet{}
 			rows, err := tx.Query(executor.SqlString)
 			if err != nil && executor.OnError != nil {
 				executor.OnError(err)
+				panic(err)
 			}
 
 			if rows != nil {
@@ -203,14 +267,12 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 			}
 
 			if err != nil {
-				_ = tx.Rollback()
-				onRollback(err)
-				return
+				panic(err)
 			}
 		}
 
 		_ = tx.Commit()
-		onCommit()
+		go onCommit()
 	}()
 }
 
@@ -224,4 +286,8 @@ func (rs *RecordSet) NextResultSet() bool {
 
 func (rs *RecordSet) Scan(fields ...any) error {
 	return rs.curRows.Scan(fields...)
+}
+
+func (rs *RecordSet) Close() {
+	_ = rs.curRows.Close()
 }
