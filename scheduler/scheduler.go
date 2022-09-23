@@ -44,11 +44,24 @@ type Handler struct {
 }
 
 var (
-	mainHandler Handler
+	mainHandler  Handler
+	keptHandlers map[string]*Handler
 )
 
 func GetHandler() *Handler {
 	return &mainHandler
+}
+
+func GetKeptHandler(name string) *Handler {
+	return keptHandlers[name]
+}
+
+func KeepHandler(name string, handler *Handler) {
+	if keptHandlers == nil {
+		keptHandlers = make(map[string]*Handler)
+	}
+
+	keptHandlers[name] = handler
 }
 
 func CreateObjectByInterval(milliSecondInterval int64, completion func()) *Object {
