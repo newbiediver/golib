@@ -190,14 +190,11 @@ func (s *Handler) Execute(queryString string, execCallback ExecCallback, errCall
 			return
 		}
 
-		affected, err := r.RowsAffected()
-		if err != nil {
-			errCallback(err)
-			return
+		if execCallback != nil {
+			affected, _ := r.RowsAffected()
+			lastInsertedID, _ := r.LastInsertId()
+			execCallback(affected, lastInsertedID)
 		}
-
-		lastInsertedID, _ := r.LastInsertId()
-		execCallback(affected, lastInsertedID)
 	}()
 
 }
