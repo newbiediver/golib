@@ -116,7 +116,7 @@ var (
 
 // NewHandler 새연결
 func NewHandler(server, uid, pwd, source string, port, io int) (*Handler, error) {
-	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&multiStatements=true",
+	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&multiStatements=true&parseTime=true",
 		uid, pwd, server, port, source)
 
 	dbHandler, err := sql.Open("mysql", connectionString)
