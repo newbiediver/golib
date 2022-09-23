@@ -97,6 +97,7 @@ type RecordSet struct {
 	curRows *sql.Rows
 }
 
+type ExecCallback func(int64, int64)
 type QueryCallback func(*RecordSet) error
 type ErrorCallback func(error)
 type CommitCallback func()
@@ -179,6 +180,26 @@ func (s *Handler) SyncQuery(sqlString string) (*RecordSet, error) {
 	}
 
 	return &result, nil
+}
+
+func (s *Handler) Execute(queryString string, execCallback ExecCallback, errCallback ErrorCallback) {
+	go func() {
+		r, err := s.sqlHandler.Exec(queryString)
+		if err != nil {
+			errCallback(err)
+			return
+		}
+
+		affected, err := r.RowsAffected()
+		if err != nil {
+			errCallback(err)
+			return
+		}
+
+		lastInsertedID, _ := r.LastInsertId()
+		execCallback(affected, lastInsertedID)
+	}()
+
 }
 
 // Query 단일 쿼리 호출
