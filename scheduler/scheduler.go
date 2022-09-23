@@ -64,6 +64,14 @@ func KeepHandler(name string, handler *Handler) {
 	keptHandlers[name] = handler
 }
 
+func StopKeptHandlers() {
+	if keptHandlers != nil {
+		for _, ha := range keptHandlers {
+			ha.Stop()
+		}
+	}
+}
+
 func CreateObjectByInterval(milliSecondInterval int64, completion func()) *Object {
 	toNanoSecondInterval := milliSecondInterval * milliSecondToNanoSecond
 	obj := new(Object)
