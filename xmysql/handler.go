@@ -250,9 +250,9 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 		}
 
 		defer func() {
-			_ = tx.Rollback()
-
 			if r := recover(); r != nil {
+				_ = tx.Rollback()
+
 				switch r.(type) {
 				case string:
 					go onRollback(errors.New(r.(string)))
