@@ -3,33 +3,33 @@ package socket
 import (
 	"encoding/binary"
 	"errors"
-	"log"
 	"github.com/newbiediver/golib/xlog"
+	"log"
 	"strings"
 	"sync"
 	"time"
 )
 
 type rpcHeader struct {
-	rpcSize uint64
-	bodySize uint64
+	rpcSize    uint64
+	bodySize   uint64
 	rpcNameLen uint64
 }
 
 type RPCClient struct {
-	connector	*TCP
+	connector *TCP
 }
 
 type RPCServer struct {
-	lock 			*sync.Mutex
-	listener 		*Listener
+	lock            *sync.Mutex
+	listener        *Listener
 	clientContainer map[*TCP]*RPCClient
-	eventFunctor	func(*RPCClient, string, []string)
-	xlogUsing		bool
+	eventFunctor    func(*RPCClient, string, []string)
+	xlogUsing       bool
 }
 
 const (
-	logInfo	int = 0 + iota
+	logInfo int = 0 + iota
 	logWarn
 	logError
 	logFatal
@@ -108,8 +108,8 @@ func (r *RPCClient) Send(str string) {
 	const objSize int = 24
 
 	obj := rpcHeader{
-		rpcSize: uint64(len(str) + objSize),
-		bodySize: uint64(len(str)),
+		rpcSize:    uint64(len(str) + objSize),
+		bodySize:   uint64(len(str)),
 		rpcNameLen: 0,
 	}
 
@@ -166,8 +166,8 @@ func (r *RPCServer) rpcReceiver(connector *TCP, p []byte) {
 	funcNameLen := binary.LittleEndian.Uint64(rawFuncNameSize)
 	bodySize := binary.LittleEndian.Uint64(rawBodySize)
 
-	funcName := string(p[24:24+funcNameLen])
-	body := p[24+funcNameLen:24+funcNameLen+bodySize]
+	funcName := string(p[24 : 24+funcNameLen])
+	body := p[24+funcNameLen : 24+funcNameLen+bodySize]
 	args := r.parseArgs(body)
 
 	if r.eventFunctor != nil {
@@ -182,8 +182,13 @@ func (r *RPCServer) parseArgs(bytes []byte) []string {
 		}
 	}()
 
+	var args []string
 	bodyString := string(bytes)
-	args := strings.Split(bodyString, ",")
+	if bodyString[0] != '"' && bodyString[len(bodyString)-1] != '"' {
+		args = strings.Split(bodyString, ",")
+	} else {
+		args = append(args, bodyString[1:len(bodyString)-1])
+	}
 
 	return args
 }
