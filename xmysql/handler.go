@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/newbiediver/golib/exception"
 	"github.com/newbiediver/golib/scheduler"
 )
 
@@ -184,6 +185,14 @@ func (s *Handler) SyncQuery(sqlString string) (*RecordSet, error) {
 
 func (s *Handler) Execute(queryString string, execCallback ExecCallback, errCallback ErrorCallback) {
 	go func() {
+		defer func() {
+			if rcv := recover(); rcv != nil {
+				if ex := exception.GetExceptionHandler(); ex != nil {
+					ex.ExceptionCallbackFunctor()
+				}
+			}
+		}()
+
 		r, err := s.sqlHandler.Exec(queryString)
 		if err != nil {
 			errCallback(err)
@@ -220,6 +229,10 @@ func (s *Handler) Query(executor *QueryExecutor) {
 					executor.OnError(r.(error))
 				default:
 					executor.OnError(errors.New("unknown error"))
+				}
+
+				if ex := exception.GetExceptionHandler(); ex != nil {
+					ex.ExceptionCallbackFunctor()
 				}
 			}
 		}()
@@ -262,6 +275,10 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 					go onRollback(errors.New("unknown error"))
 				}
 				fmt.Println(r)
+
+				if ex := exception.GetExceptionHandler(); ex != nil {
+					ex.ExceptionCallbackFunctor()
+				}
 			}
 		}()
 
@@ -290,7 +307,7 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 		}
 
 		_ = tx.Commit()
-		go onCommit()
+		onCommit()
 	}()
 }
 

@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"github.com/newbiediver/golib/exception"
 	"sync"
 	"time"
 )
@@ -135,7 +136,14 @@ func (s *Handler) activateObject() {
 }
 
 func (s *Handler) procObjects(p Priority) {
-	defer s.waiter.Done()
+	defer func() {
+		if rcv := recover(); rcv != nil {
+			if ex := exception.GetExceptionHandler(); ex != nil {
+				ex.ExceptionCallbackFunctor()
+			}
+		}
+		s.waiter.Done()
+	}()
 
 	for !s.termination {
 		s.activateObject()

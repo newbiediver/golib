@@ -4,22 +4,22 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/newbiediver/golib/exception"
 	"net"
 	"time"
 )
 
 // socketBuffer 리시브용 소켓 버퍼
 type socketBuffer struct {
-	data 	[]byte
-	offset  int
+	data   []byte
+	offset int
 }
 
 // TCP is
 type TCP struct {
 	connection net.Conn
 	connected  bool
-	buffer 	   socketBuffer
+	buffer     socketBuffer
 }
 
 // Listener is for server
@@ -29,15 +29,15 @@ type Listener struct {
 }
 
 type rpcObject struct {
-	rpcSize, bodySize		uint64
-	body 					[]byte
+	rpcSize, bodySize uint64
+	body              []byte
 }
 
 // RPC is using tcp
 type RPC struct {
-	connector	*TCP
-	rawBuffer	[]byte
-	obj 		chan *rpcObject
+	connector *TCP
+	rawBuffer []byte
+	obj       chan *rpcObject
 }
 
 func (b *socketBuffer) initSocketBuffer() {
@@ -131,7 +131,6 @@ func (t *TCP) ConnectionHandler(f func(), d func()) {
 		if err != nil {
 			if n == 0 {
 				t.connected = false
-				log.Println(err)
 				d()
 			}
 			break
@@ -174,6 +173,14 @@ func (l *Listener) Listen(port uint) error {
 // AsyncAccept is accept on background
 func (l *Listener) AsyncAccept(acceptCallback func(*TCP)) {
 	go func() {
+		defer func() {
+			if rcv := recover(); rcv != nil {
+				if ex := exception.GetExceptionHandler(); ex != nil {
+					ex.ExceptionCallbackFunctor()
+				}
+			}
+		}()
+
 		for {
 			conn, _ := l.ln.Accept()
 			if l.flagStop {
@@ -232,12 +239,12 @@ func (r *RPC) receiver(buffer []byte) {
 
 	obj := new(rpcObject)
 	rawRpcSize := buffer[:lenSize]
-	rawBodySize := buffer[lenSize:lenSize*2]
+	rawBodySize := buffer[lenSize : lenSize*2]
 
 	obj.rpcSize = binary.LittleEndian.Uint64(rawRpcSize)
 	obj.bodySize = binary.LittleEndian.Uint64(rawBodySize)
 
-	obj.body = buffer[lenSize*3:lenSize*3+int(obj.bodySize)]
+	obj.body = buffer[lenSize*3 : lenSize*3+int(obj.bodySize)]
 
 	r.obj <- obj
 }
@@ -245,14 +252,27 @@ func (r *RPC) receiver(buffer []byte) {
 func (r *RPC) Connect(addr string, port uint, whenDisconnect func()) bool {
 	isConnect := r.connector.Connect(addr, port)
 	if isConnect {
-		go r.connector.ConnectionHandler(func() {
-			for r.extractPacket(r.connector, r.rawBuffer) != nil {
-				r.receiver(r.rawBuffer)
-			}
-		}, whenDisconnect)
+		go func() {
+			defer func() {
+				if rcv := recover(); rcv != nil {
+					if ex := exception.GetExceptionHandler(); ex != nil {
+						ex.ExceptionCallbackFunctor()
+					}
+				}
+			}()
+			r.connector.ConnectionHandler(func() {
+				for r.extractPacket(r.connector, r.rawBuffer) != nil {
+					r.receiver(r.rawBuffer)
+				}
+			}, whenDisconnect)
+		}()
 	}
 
 	return isConnect
+}
+
+func (r *RPC) Connected() bool {
+	return r.connector.IsConnected()
 }
 
 func (r *RPC) Call(funcName, body string) []byte {
@@ -260,7 +280,7 @@ func (r *RPC) Call(funcName, body string) []byte {
 	const lenSize int = 8
 
 	obj := rpcObject{}
-	obj.rpcSize = headerSize + uint64(len(funcName) + len(body))
+	obj.rpcSize = headerSize + uint64(len(funcName)+len(body))
 	obj.bodySize = uint64(len(body))
 	nameLen := uint64(len(funcName))
 

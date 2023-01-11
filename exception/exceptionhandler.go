@@ -22,11 +22,19 @@ type Handler struct {
 	backendURL    string
 }
 
-func NewExceptionHandler(userCallback Operator) *Handler {
-	r := new(Handler)
-	r.userCallstack = userCallback
+var (
+	exceptionHandler *Handler
+)
 
-	return r
+func StartExceptionHandler(userCallback Operator) *Handler {
+	exceptionHandler = new(Handler)
+	exceptionHandler.userCallstack = userCallback
+
+	return exceptionHandler
+}
+
+func GetExceptionHandler() *Handler {
+	return exceptionHandler
 }
 
 func (ha *Handler) RunWithCrashHub(appName, dumpDirectory, backend string) {

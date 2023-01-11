@@ -3,6 +3,7 @@ package socket
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/newbiediver/golib/exception"
 	"github.com/newbiediver/golib/xlog"
 	"log"
 	"strings"
@@ -61,12 +62,15 @@ func (r *RPCServer) RunServer(port uint16) error {
 	}
 
 	r.listener.AsyncAccept(func(connector *TCP) {
-		rpc := new(RPCClient)
-		rpc.connector = connector
-		r.addClient(rpc)
-		r.rpcLog(logInfo, "Connected rpc client: %s", connector.GetRemoteAddr())
-
 		go func() {
+			defer func() {
+				if rcv := recover(); rcv != nil {
+					if ex := exception.GetExceptionHandler(); ex != nil {
+						ex.ExceptionCallbackFunctor()
+					}
+				}
+			}()
+
 			rpcBuffer := make([]byte, 32768)
 			connector.ConnectionHandler(func() {
 				for extractRpc(connector, rpcBuffer) != nil {
@@ -74,7 +78,6 @@ func (r *RPCServer) RunServer(port uint16) error {
 				}
 			}, func() {
 				r.deleteClient(connector)
-				r.rpcLog(logWarn, "Disconnected rpc client: %s", connector.GetRemoteAddr())
 			})
 		}()
 	})
@@ -157,8 +160,10 @@ func (r *RPCServer) rpcLog(lv int, format string, a ...interface{}) {
 func (r *RPCServer) rpcReceiver(connector *TCP, p []byte) {
 	rpcSession := r.clientContainer[connector]
 	if rpcSession == nil {
-		r.rpcLog(logError, "Invalid rpc session")
-		return
+		rpcSession = new(RPCClient)
+		rpcSession.connector = connector
+		r.addClient(rpcSession)
+		r.rpcLog(logInfo, "Connected rpc client: %s", connector.GetRemoteAddr())
 	}
 
 	rawBodySize := p[8:16]
