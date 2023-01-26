@@ -239,9 +239,15 @@ func (s *Handler) Query(executor *QueryExecutor) {
 
 		if rows != nil {
 			result.curRows = rows
-			_ = executor.OnQuery(&result)
+			err = executor.OnQuery(&result)
 		} else {
-			_ = executor.OnQuery(nil)
+			err = executor.OnQuery(nil)
+		}
+
+		if err != nil {
+			if executor.OnError != nil {
+				executor.OnError(err)
+			}
 		}
 	}()
 }
@@ -268,11 +274,11 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 
 				switch r.(type) {
 				case string:
-					go onRollback(errors.New(r.(string)))
+					onRollback(errors.New(r.(string)))
 				case error:
-					go onRollback(r.(error))
+					onRollback(r.(error))
 				default:
-					go onRollback(errors.New("unknown error"))
+					onRollback(errors.New("unknown error"))
 				}
 				fmt.Println(r)
 
@@ -302,7 +308,9 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 			}
 
 			if err != nil {
-				panic(err)
+				if executor.OnError != nil {
+					executor.OnError(err)
+				}
 			}
 		}
 
