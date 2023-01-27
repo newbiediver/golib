@@ -281,18 +281,16 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 					onRollback(errors.New("unknown error"))
 				}
 				fmt.Println(r)
-
-				if ex := exception.GetExceptionHandler(); ex != nil {
-					ex.ExceptionCallbackFunctor()
-				}
 			}
 		}()
 
 		for _, executor := range queries {
 			result := RecordSet{}
 			rows, err := tx.Query(executor.SqlString)
-			if err != nil && executor.OnError != nil {
-				executor.OnError(err)
+			if err != nil {
+				if executor.OnError != nil {
+					executor.OnError(err)
+				}
 				panic(err)
 			}
 
@@ -311,6 +309,7 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 				if executor.OnError != nil {
 					executor.OnError(err)
 				}
+				panic(err)
 			}
 		}
 
