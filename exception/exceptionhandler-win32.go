@@ -20,7 +20,7 @@ var (
 	exceptionHandler *Handler
 )
 
-func NewExceptionHandler(userCallback Operator) *Handler {
+func StartExceptionHandler(userCallback Operator) *Handler {
 	exceptionHandler = new(Handler)
 	exceptionHandler.userCallstack = userCallback
 
