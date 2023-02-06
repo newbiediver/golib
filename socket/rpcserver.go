@@ -6,7 +6,6 @@ import (
 	"github.com/newbiediver/golib/exception"
 	"github.com/newbiediver/golib/xlog"
 	"log"
-	"strings"
 	"sync"
 	"time"
 )
@@ -187,13 +186,33 @@ func (r *RPCServer) parseArgs(bytes []byte) []string {
 		}
 	}()
 
-	var args []string
+	var (
+		args     []string
+		beg      int
+		inString bool
+	)
+
 	bodyString := string(bytes)
-	if bodyString[0] != '"' && bodyString[len(bodyString)-1] != '"' {
-		args = strings.Split(bodyString, ",")
-	} else {
-		args = append(args, bodyString[1:len(bodyString)-1])
+	for i := 0; i < len(bodyString); i++ {
+		if bodyString[i] == ',' && !inString {
+			args = append(args, bodyString[beg:i])
+			beg = i + 1
+		} else if bodyString[i] == '"' {
+			if !inString {
+				inString = true
+			} else if i > 0 && bodyString[i-1] != '\\' {
+				inString = false
+			}
+		}
 	}
 
-	return args
+	result := append(args, bodyString[beg:])
+	for i, s := range result {
+		if s[0] == '"' && s[len(s)-1] == '"' {
+			s = s[1 : len(s)-1]
+			result[i] = s
+		}
+	}
+
+	return result
 }

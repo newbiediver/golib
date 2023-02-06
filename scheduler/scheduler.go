@@ -3,6 +3,7 @@ package scheduler
 import (
 	"github.com/newbiediver/golib/exception"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,20 +29,23 @@ const (
 )
 
 type Object struct {
+	key          uint64
 	interval     int64
 	lastTickTime int64
 	nextEvent    time.Time
 	objType      procType
 	completion   func()
+	stopFlag     bool
 }
 
 type Handler struct {
-	termination bool
-	running     bool
-	waiter      sync.WaitGroup
-	lock        *sync.Mutex
-	newObj      []*Object
-	activeObj   []*Object
+	termination  bool
+	running      bool
+	keyContainer uint64
+	waiter       sync.WaitGroup
+	lock         *sync.Mutex
+	newObj       []*Object
+	activeObj    map[uint64]*Object
 }
 
 var (
@@ -123,6 +127,10 @@ func (s *Handler) NewObject(obj *Object) {
 	s.newObj = append(s.newObj, obj)
 }
 
+func (s *Handler) DeleteObject(obj *Object) {
+	obj.stopFlag = true
+}
+
 func (s *Handler) activateObject() {
 	if s.newObj == nil {
 		return
@@ -131,8 +139,18 @@ func (s *Handler) activateObject() {
 	defer s.lock.Unlock()
 	s.lock.Lock()
 
-	s.activeObj = append(s.activeObj, s.newObj...)
-	s.newObj = nil
+	if s.activeObj == nil {
+		s.activeObj = make(map[uint64]*Object)
+	}
+
+	if s.newObj != nil {
+		for _, obj := range s.newObj {
+			newKey := atomic.AddUint64(&s.keyContainer, 1)
+			obj.key = newKey
+			s.activeObj[newKey] = obj
+		}
+		s.newObj = nil
+	}
 }
 
 func (s *Handler) procObjects(p Priority) {
@@ -145,10 +163,16 @@ func (s *Handler) procObjects(p Priority) {
 		s.waiter.Done()
 	}()
 
+	var stopObjects []*Object
+
 	for !s.termination {
 		s.activateObject()
 		now := time.Now().In(time.UTC).UnixNano()
 		for _, obj := range s.activeObj {
+			if obj.stopFlag {
+				stopObjects = append(stopObjects, obj)
+				continue
+			}
 			if obj.objType == intervalType {
 				if now >= obj.lastTickTime {
 					obj.completion()
@@ -162,6 +186,17 @@ func (s *Handler) procObjects(p Priority) {
 				}
 			}
 		}
+
+		if stopObjects != nil {
+			for _, obj := range stopObjects {
+				s.removeObject(obj)
+			}
+		}
+
 		time.Sleep(time.Millisecond * time.Duration(p))
 	}
+}
+
+func (s *Handler) removeObject(obj *Object) {
+	delete(s.activeObj, obj.key)
 }
