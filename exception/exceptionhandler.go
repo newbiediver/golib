@@ -3,8 +3,11 @@
 package exception
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -95,12 +98,31 @@ func (ha *Handler) ExceptionCallbackFunctor() {
 
 	uploadUri := fmt.Sprintf("%s/upload", ha.backendURL)
 	contextString := fmt.Sprintf("core.%s", ha.appName)
-
+	imageName := ha.getCurrentDockerImageName()
 	base64Callstack := base64.StdEncoding.EncodeToString([]byte(callstackString))
 
-	cmdCrashHandler := exec.Command("sh", "-c", fmt.Sprintf("./crashhub_handler --rm -r %s -d %s -c %s -n %s -m \"%s\"", uploadUri, ha.dumpDirectory, contextString, ha.appName, base64Callstack))
+	cmdCrashHandler := exec.Command("sh", "-c", fmt.Sprintf("./crashhub_handler --rm -r %s -d %s -c %s -n %s -i %s -m \"%s\"", uploadUri, ha.dumpDirectory, contextString, ha.appName, imageName, base64Callstack))
 	cmdCrashHandler.Stdout = os.Stdout
 	if err := cmdCrashHandler.Run(); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func (ha *Handler) getCurrentDockerImageName() string {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return ""
+	}
+
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		return ""
+	}
+
+	if len(containers) > 0 {
+		container := containers[0]
+		return container.Image
+	}
+
+	return ""
 }
