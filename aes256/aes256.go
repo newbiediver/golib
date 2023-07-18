@@ -1,6 +1,7 @@
 package aes256
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
@@ -10,8 +11,10 @@ import (
 
 // Cipher 는 AES 256bit 를 위한 핸들러
 type Cipher struct {
-	key string
-	iv  string
+	key   string
+	iv    string
+	block cipher.Block
+	mode  cipher.BlockMode
 }
 
 // SetKey : 256bit(32bytes) 크기의 키를 셋팅합니다.
@@ -21,6 +24,7 @@ func (cp *Cipher) SetKey(key string) error {
 	}
 
 	cp.key = key
+	cp.block, _ = aes.NewCipher([]byte(key))
 
 	return nil
 }
@@ -38,45 +42,40 @@ func (cp *Cipher) SetIV(iv string) error {
 
 // Encode : 암호화!
 func (cp *Cipher) Encode(data []byte) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(cp.key))
-	if err != nil {
-		return nil, err
-	}
-
-	cipherBlock := encrypt(block, data, cp.iv)
+	cp.mode = cipher.NewCBCEncrypter(cp.block, []byte(cp.iv))
+	cipherBlock := encrypt(cp.mode, data)
 
 	return cipherBlock, nil
 }
 
-func encrypt(b cipher.Block, plain []byte, iv string) []byte {
-	mod := len(plain) % aes.BlockSize
-	paddingSize := aes.BlockSize - mod
-	padding := make([]byte, paddingSize)
-	for i := 0; i < paddingSize; i++ {
-		padding[i] = byte(paddingSize)
-	}
-	plain = append(plain, padding...)
+func padPKCS7(plainText []byte, blockSize int) []byte {
+	padding := blockSize - len(plainText)%blockSize
+	padText := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(plainText, padText...)
+}
 
-	cipherBytes := make([]byte, len(plain))
-	mode := cipher.NewCBCEncrypter(b, []byte(iv))
-	mode.CryptBlocks(cipherBytes, plain)
+func trimPKCS5(text []byte) []byte {
+	padding := text[len(text)-1]
+	return text[:len(text)-int(padding)]
+}
+
+func encrypt(mode cipher.BlockMode, plain []byte) []byte {
+	paddedPlain := padPKCS7([]byte(plain), mode.BlockSize())
+
+	cipherBytes := make([]byte, len(paddedPlain))
+	mode.CryptBlocks(cipherBytes, paddedPlain)
 
 	return cipherBytes
 }
 
 // Decode : 복호화!
 func (cp *Cipher) Decode(data []byte) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(cp.key))
-	if err != nil {
-		return nil, err
-	}
-
-	cipherBlock, err := decrypt(block, data, cp.iv)
-
+	cp.mode = cipher.NewCBCDecrypter(cp.block, []byte(cp.iv))
+	cipherBlock, err := decrypt(cp.mode, data)
 	return cipherBlock, err
 }
 
-func decrypt(b cipher.Block, ciphered []byte, iv string) ([]byte, error) {
+func decrypt(mode cipher.BlockMode, ciphered []byte) ([]byte, error) {
 	plainSize := len(ciphered)
 
 	if len(ciphered)%aes.BlockSize != 0 {
@@ -90,14 +89,9 @@ func decrypt(b cipher.Block, ciphered []byte, iv string) ([]byte, error) {
 	}()
 
 	plain := make([]byte, plainSize)
-	mode := cipher.NewCBCDecrypter(b, []byte(iv))
 	mode.CryptBlocks(plain, ciphered)
 
-	if len(plain)-int(plain[plainSize-1]) < 0 {
-		return nil, errors.New("Invalid AES cipher encrypted file")
-	}
+	trimmedPlain := trimPKCS5(plain)
 
-	realData := plain[:len(plain)-int(plain[plainSize-1])]
-
-	return realData, nil
+	return trimmedPlain, nil
 }
