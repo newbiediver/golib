@@ -215,6 +215,7 @@ func (s *Handler) Query(executor *QueryExecutor) {
 		rows, err := s.sqlHandler.Query(executor.SqlString)
 		if err != nil && executor.OnError != nil {
 			executor.OnError(err)
+			return
 		}
 
 		defer func() {
@@ -239,10 +240,9 @@ func (s *Handler) Query(executor *QueryExecutor) {
 
 		if rows != nil {
 			result.curRows = rows
-			err = executor.OnQuery(&result)
-		} else {
-			err = executor.OnQuery(nil)
 		}
+
+		err = executor.OnQuery(&result)
 
 		if err != nil {
 			if executor.OnError != nil {
@@ -296,10 +296,9 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 
 			if rows != nil {
 				result.curRows = rows
-				err = executor.OnQuery(&result)
-			} else {
-				err = executor.OnQuery(nil)
 			}
+
+			err = executor.OnQuery(&result)
 
 			if rows != nil {
 				_ = rows.Close()
@@ -319,17 +318,28 @@ func (s *Handler) Transaction(onCommit CommitCallback, onRollback RollbackCallba
 }
 
 func (rs *RecordSet) NextRow() bool {
+	if rs.curRows == nil {
+		return false
+	}
 	return rs.curRows.Next()
 }
 
 func (rs *RecordSet) NextResultSet() bool {
+	if rs.curRows == nil {
+		return false
+	}
 	return rs.curRows.NextResultSet()
 }
 
 func (rs *RecordSet) Scan(fields ...any) error {
+	if rs.curRows == nil {
+		return errors.New("no recordset data")
+	}
 	return rs.curRows.Scan(fields...)
 }
 
 func (rs *RecordSet) Close() {
-	_ = rs.curRows.Close()
+	if rs.curRows != nil {
+		_ = rs.curRows.Close()
+	}
 }
