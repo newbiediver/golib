@@ -213,10 +213,6 @@ func (s *Handler) Query(executor *QueryExecutor) {
 	go func() {
 		result := RecordSet{}
 		rows, err := s.sqlHandler.Query(executor.SqlString)
-		if err != nil && executor.OnError != nil {
-			executor.OnError(err)
-			return
-		}
 
 		defer func() {
 			if rows != nil {
@@ -237,6 +233,11 @@ func (s *Handler) Query(executor *QueryExecutor) {
 				}
 			}
 		}()
+
+		if err != nil && executor.OnError != nil {
+			executor.OnError(err)
+			return
+		}
 
 		if rows != nil {
 			result.curRows = rows
