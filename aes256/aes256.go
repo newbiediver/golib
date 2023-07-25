@@ -36,13 +36,16 @@ func (cp *Cipher) SetIV(iv string) error {
 	}
 
 	cp.iv = iv
-	cp.mode = cipher.NewCBCEncrypter(cp.block, []byte(cp.iv))
 
 	return nil
 }
 
 // Encode : 암호화!
 func (cp *Cipher) Encode(data []byte) ([]byte, error) {
+	if cp.mode == nil {
+		cp.mode = cipher.NewCBCEncrypter(cp.block, []byte(cp.iv))
+	}
+
 	cipherBlock := encrypt(cp.mode, data)
 
 	return cipherBlock, nil
@@ -70,6 +73,10 @@ func encrypt(mode cipher.BlockMode, plain []byte) []byte {
 
 // Decode : 복호화!
 func (cp *Cipher) Decode(data []byte) ([]byte, error) {
+	if cp.mode == nil {
+		cp.mode = cipher.NewCBCDecrypter(cp.block, []byte(cp.iv))
+	}
+
 	cipherBlock, err := decrypt(cp.mode, data)
 	return cipherBlock, err
 }
