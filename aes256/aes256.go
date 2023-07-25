@@ -70,7 +70,6 @@ func encrypt(mode cipher.BlockMode, plain []byte) []byte {
 
 // Decode : 복호화!
 func (cp *Cipher) Decode(data []byte) ([]byte, error) {
-	cp.mode = cipher.NewCBCDecrypter(cp.block, []byte(cp.iv))
 	cipherBlock, err := decrypt(cp.mode, data)
 	return cipherBlock, err
 }
