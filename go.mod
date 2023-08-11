@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/docker/docker v24.0.5+incompatible
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/huin/goupnp v1.2.0
 	github.com/jpillora/ipfilter v1.2.9
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -24,6 +25,7 @@ require (
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.11.0 // indirect
