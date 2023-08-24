@@ -10,6 +10,7 @@ import (
 )
 
 type InternetGatewayDevice interface {
+	InternalIP() (string, error)
 	ExternalIP() (string, error)
 	AddPortForward(internalPort, externalPort uint16, description, protocol string) error
 	DeletePortForward(externalPort uint16, protocol string) error
@@ -88,6 +89,10 @@ func (u *upnpDevice) getInternalIP() (string, error) {
 	}
 
 	return "", errors.New("could not determine internal IP")
+}
+
+func (u *upnpDevice) InternalIP() (string, error) {
+	return u.getInternalIP()
 }
 
 func (u *upnpDevice) ExternalIP() (string, error) {
