@@ -3,7 +3,7 @@ module github.com/newbiediver/golib
 go 1.20
 
 require (
-	github.com/docker/docker v24.0.6+incompatible
+	github.com/docker/docker v24.0.7+incompatible
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/huin/goupnp v1.3.0
 	github.com/jpillora/ipfilter v1.2.9
