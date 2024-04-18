@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"io/ioutil"
 	"os"
@@ -114,14 +114,14 @@ func (ha *Handler) getCurrentDockerImageName() string {
 		return ""
 	}
 
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	containers, err := cli.ContainerList(context.Background(), container.ListOptions{All: true})
 	if err != nil {
 		return ""
 	}
 
 	if len(containers) > 0 {
-		container := containers[0]
-		return container.Image
+		c := containers[0]
+		return c.Image
 	}
 
 	return ""
