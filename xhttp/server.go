@@ -1,6 +1,7 @@
 package xhttp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -9,64 +10,45 @@ import (
 	"time"
 )
 
-type HttpHandler struct {
-	Method          MethodType
-	AsFunctor       func(*gin.Context)
-	AsDirectoryPath string
-	AsFilePath      string
-}
-
 type Server struct {
-	engine *gin.Engine
-	binder map[string]*HttpHandler
+	host   *http.Server
+	Engine *gin.Engine
 }
 
 func NewServer() *Server {
 	result := new(Server)
-	result.binder = make(map[string]*HttpHandler)
-	result.engine = gin.New()
-	result.engine.Use(result.customLogger(), gin.Recovery())
+	result.Engine = gin.New()
+	result.Engine.Use(result.customLogger(), gin.Recovery())
 
 	return result
 }
 
-func (s *Server) Bind(path string, handler *HttpHandler) {
-	s.binder[path] = handler
-}
-
 func (s *Server) Run(port int) error {
 	portString := fmt.Sprintf(":%d", port)
-	if len(s.binder) == 0 {
-		return errors.New("no path bound")
-	}
 
-	for path, handler := range s.binder {
-		switch handler.Method {
-		case GET:
-			if handler.AsDirectoryPath != "" {
-				s.engine.Static(path, handler.AsDirectoryPath)
-			} else if handler.AsFilePath != "" {
-				s.engine.StaticFile(path, handler.AsFilePath)
-			} else {
-				s.engine.GET(path, handler.AsFunctor)
-			}
-			break
-		case POST:
-			s.engine.POST(path, handler.AsFunctor)
-			break
-		case DELETE:
-			s.engine.DELETE(path, handler.AsFunctor)
-			break
-		}
+	s.host = &http.Server{
+		Addr:    portString,
+		Handler: s.Engine,
 	}
 
 	go func() {
-		if err := http.ListenAndServe(portString, s.engine); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.host.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(err)
 		}
 	}()
 
 	return nil
+}
+
+func (s *Server) Stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := s.host.Shutdown(ctx); err != nil {
+		panic(err)
+	}
+
+	<-ctx.Done()
 }
 
 func (s *Server) customLogger() gin.HandlerFunc {
