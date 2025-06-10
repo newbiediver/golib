@@ -12,7 +12,7 @@ import (
 // Cipher 는 AES 256bit 를 위한 핸들러
 type Cipher struct {
 	key   string
-	iv    string
+	iv    []byte
 	block cipher.Block
 	mode  cipher.BlockMode
 }
@@ -30,7 +30,7 @@ func (cp *Cipher) SetKey(key string) error {
 }
 
 // SetIV : 128bit(16byte) 크기의 Init Vector 값을 셋팅합니다.
-func (cp *Cipher) SetIV(iv string) error {
+func (cp *Cipher) SetIV(iv []byte) error {
 	if len(iv) != 16 {
 		return fmt.Errorf("IV must be set 128 bit")
 	}
@@ -43,7 +43,7 @@ func (cp *Cipher) SetIV(iv string) error {
 // Encode : 암호화!
 func (cp *Cipher) Encode(data []byte) ([]byte, error) {
 	if cp.mode == nil {
-		cp.mode = cipher.NewCBCEncrypter(cp.block, []byte(cp.iv))
+		cp.mode = cipher.NewCBCEncrypter(cp.block, cp.iv)
 	}
 
 	cipherBlock := encrypt(cp.mode, data)
@@ -74,7 +74,7 @@ func encrypt(mode cipher.BlockMode, plain []byte) []byte {
 // Decode : 복호화!
 func (cp *Cipher) Decode(data []byte) ([]byte, error) {
 	if cp.mode == nil {
-		cp.mode = cipher.NewCBCDecrypter(cp.block, []byte(cp.iv))
+		cp.mode = cipher.NewCBCDecrypter(cp.block, cp.iv)
 	}
 
 	cipherBlock, err := decrypt(cp.mode, data)
