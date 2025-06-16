@@ -114,3 +114,13 @@ func (h *Handler) HashGet(key, field string) (any, error) {
 
 	return value, nil
 }
+
+func (h *Handler) Exists(key string) bool {
+	ctx := context.Background()
+	exists, err := h.redisHandler.Exists(ctx, key).Result()
+	if err != nil {
+		return false
+	}
+
+	return exists == 1
+}
