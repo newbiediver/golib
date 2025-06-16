@@ -20,7 +20,7 @@ type Cipher struct {
 // SetKey : 256bit(32bytes) 크기의 키를 셋팅합니다.
 func (cp *Cipher) SetKey(key string) error {
 	if len(key) != 32 {
-		return fmt.Errorf("Key must be set 256 bit")
+		return fmt.Errorf("key must be set 256 bit")
 	}
 
 	cp.key = key
